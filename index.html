@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Portfolio - Example</title>
+  <style>
+    /* === Reset & base === */
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{
+      font-family:Inter, system-ui, Arial, sans-serif;
+      line-height:1.5;
+      color:#222;
+      background:linear-gradient(180deg,#f7fbff,#ffffff);
+      padding:20px;
+    }
+
+    /* === Layout === */
+    .container{max-width:1000px;margin:0 auto;}
+    header{display:flex;align-items:center;justify-content:space-between;padding:18px 0;}
+    .brand{font-weight:700;font-size:1.2rem;color:#0b5;}
+    nav ul{display:flex;gap:14px;list-style:none}
+    nav a{text-decoration:none;color:#333;padding:8px;border-radius:6px}
+    nav a:hover{background:#eef; color:#0a6}
+
+    /* Mobile nav button */
+    .menu-btn{display:none;border:0;background:#0a6;color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer}
+
+    /* Hero */
+    .hero{display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:center;margin:24px 0;padding:24px;background:#fff;border-radius:12px;box-shadow:0 6px 20px rgba(15,40,60,0.06)}
+    .hero h1{font-size:1.8rem;margin-bottom:8px}
+    .hero p{color:#555}
+
+    /* Card grid */
+    .projects{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:18px}
+    .card{background:#fff;padding:14px;border-radius:10px;box-shadow:0 6px 18px rgba(10,20,40,0.05);cursor:pointer;transition:transform .18s}
+    .card:hover{transform:translateY(-6px)}
+    .card h3{font-size:1.05rem;margin-bottom:6px}
+    .tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .tag{font-size:.8rem;padding:4px 8px;border-radius:999px;background:#f0f8ff;color:#055}
+
+    /* Contact */
+    .contact{margin-top:22px;background:#fff;padding:18px;border-radius:10px;box-shadow:0 6px 18px rgba(10,20,40,0.04)}
+    .form-row{display:flex;gap:12px}
+    .form-row .field{flex:1}
+    input,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #e3e7ee;font-size:0.95rem}
+    textarea{min-height:100px;resize:vertical}
+    .btn{display:inline-block;padding:10px 14px;border-radius:8px;background:#0a6;color:#fff;border:0;cursor:pointer}
+    .btn:disabled{opacity:0.6;cursor:not-allowed}
+
+    /* Footer */
+    footer{text-align:center;margin-top:26px;color:#777;font-size:.9rem}
+
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+    .modal{background:#fff;padding:18px;border-radius:10px;max-width:640px;width:100%;box-shadow:0 10px 30px rgba(10,20,40,0.2)}
+    .modal h3{margin-bottom:8px}
+    .close-btn{background:#eee;border:0;padding:6px 10px;border-radius:8px;cursor:pointer}
+
+    /* Responsive */
+    @media (max-width:800px){
+      .hero{grid-template-columns:1fr; text-align:center}
+      nav ul{display:none}
+      .menu-btn{display:inline-block}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">MyPortfolio</div>
+      <nav>
+        <ul id="nav-list">
+          <li><a href="#home">Home</a></li>
+          <li><a href="#projects">Projects</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+      </nav>
+      <button class="menu-btn" id="menuToggle">Menu</button>
+    </header>
+
+    <section id="home" class="hero" aria-label="Hero">
+      <div>
+        <h1>Hi — I'm Alex, a web developer</h1>
+        <p>I build simple, accessible, and responsive websites. Below are a few example projects — click any to learn more.</p>
+        <p style="margin-top:14px"><a href="#contact" class="btn">Hire me</a></p>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;">
+        <img src="data:image/svg+xml;utf8,
+          <svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'>
+            <rect width='220' height='220' rx='20' fill='%23e8f8f0'/>
+            <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='22' fill='%23006644' font-family='Arial'>Your Photo</text>
+          </svg>"
+          alt="avatar" style="width:220px;height:220px;border-radius:12px;object-fit:cover;box-shadow:0 10px 24px rgba(10,40,40,0.06)">
+      </div>
+    </section>
+
+    <section id="projects" aria-label="Projects">
+      <h2 style="margin-top:18px">Projects</h2>
+      <div class="projects">
+        <div class="card" data-project='{"title":"Todo App","desc":"A minimal todo app with localStorage persistence.","tags":["JS","localStorage","UI"]}'>
+          <h3>Todo App</h3>
+          <p>Practice app—add/remove tasks, save locally.</p>
+          <div class="tags"><span class="tag">JavaScript</span><span class="tag">Beginner</span></div>
+        </div>
+
+        <div class="card" data-project='{"title":"Weather UI","desc":"Responsive weather UI using public API (demo).","tags":["API","Responsive"]}'>
+          <h3>Weather UI</h3>
+          <p>Search cities and view the current weather (UI only).</p>
+          <div class="tags"><span class="tag">API</span><span class="tag">CSS</span></div>
+        </div>
+
+        <div class="card" data-project='{"title":"Portfolio Template","desc":"This template — clean and simple, built with HTML/CSS.","tags":["HTML","CSS"]}'>
+          <h3>Portfolio Template</h3>
+          <p>Template you can copy and adapt for personal sites.</p>
+          <div class="tags"><span class="tag">Design</span><span class="tag">Template</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact" class="contact" aria-label="Contact form">
+      <h2>Contact</h2>
+      <form id="contactForm" novalidate>
+        <div class="form-row" style="margin-top:10px">
+          <div class="field">
+            <label for="name">Name</label>
+            <input id="name" name="name" required placeholder="Your name" />
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" required placeholder="you@example.com" />
+          </div>
+        </div>
+
+        <div style="margin-top:10px">
+          <label for="message">Message</label>
+          <textarea id="message" name="message" required placeholder="Tell me about your project..."></textarea>
+        </div>
+
+        <p style="margin-top:12px">
+          <button class="btn" type="submit" id="sendBtn">Send message</button>
+        </p>
+        <p id="formMsg" style="color:#156;font-weight:600"></p>
+      </form>
+    </section>
+
+    <footer>
+      <small>Made with ❤️ • Example site</small>
+    </footer>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-hidden="true">
+    <div class="modal" role="document">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3 id="modalTitle">Project</h3>
+        <button class="close-btn" id="modalClose">Close</button>
+      </div>
+      <p id="modalDesc" style="margin-top:8px;color:#444"></p>
+      <div id="modalTags" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <script>
+    // Mobile nav toggle
+    const menuBtn = document.getElementById('menuToggle');
+    const navList = document.getElementById('nav-list');
+    menuBtn?.addEventListener('click', () => {
+      if (navList.style.display === 'flex') navList.style.display = 'none';
+      else navList.style.display = 'flex';
+    });
+
+    // Project modal
+    const cards = document.querySelectorAll('.card');
+    const modal = document.getElementById('modalBackdrop');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalDesc = document.getElementById('modalDesc');
+    const modalTags = document.getElementById('modalTags');
+    const modalClose = document.getElementById('modalClose');
+
+    cards.forEach(card => {
+      card.addEventListener('click', () => {
+        const data = JSON.parse(card.getAttribute('data-project'));
+        modalTitle.textContent = data.title;
+        modalDesc.textContent = data.desc;
+        modalTags.innerHTML = '';
+        data.tags.forEach(t => {
+          const span = document.createElement('span');
+          span.textContent = t;
+          span.style.marginRight = '8px';
+          span.style.padding = '6px 10px';
+          span.style.borderRadius = '999px';
+          span.style.background = '#f0f8ff';
+          span.style.color = '#055';
+          modalTags.appendChild(span);
+        });
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden','false');
+      });
+    });
+
+    modalClose.addEventListener('click', () => {
+      modal.style.display = 'none';
+      modal.setAttribute('aria-hidden','true');
+    });
+
+    // Close modal on backdrop click
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden','true');
+      }
+    });
+
+    // Simple contact form validation & "save" using localStorage
+    const form = document.getElementById('contactForm');
+    const formMsg = document.getElementById('formMsg');
+    const sendBtn = document.getElementById('sendBtn');
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = form.name.value.trim();
+      const email = form.email.value.trim();
+      const message = form.message.value.trim();
+
+      if (!name || !email || !message) {
+        formMsg.style.color = '#b00';
+        formMsg.textContent = 'Please fill all fields.';
+        return;
+      }
+      // Basic email pattern check
+      const emailPattern = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+      if (!emailPattern.test(email)) {
+        formMsg.style.color = '#b00';
+        formMsg.textContent = 'Enter a valid email.';
+        return;
+      }
+
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'Sending...';
+
+      // Simulate send and save message locally
+      setTimeout(() => {
+        const stored = JSON.parse(localStorage.getItem('messages') || '[]');
+        stored.push({name, email, message, time: new Date().toISOString()});
+        localStorage.setItem('messages', JSON.stringify(stored));
+
+        formMsg.style.color = '#0a6';
+        formMsg.textContent = 'Message saved locally (demo). Thank you!';
+        form.reset();
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send message';
+      }, 700);
+    });
+  </script>
+</body>
+</html>
