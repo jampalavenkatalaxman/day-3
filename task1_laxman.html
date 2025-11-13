@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple HTML App — Task & Notes</title>
+  <meta name="description" content="Single-file HTML app: tasks, notes, localStorage, search, filters." />
+  <style>
+    :root{
+      --bg:#0f172a; --card:#0b1220; --text:#e6eef8; --muted:#9fb0cc; --accent:#60a5fa;
+      --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial; margin:0; min-height:100vh; background:linear-gradient(180deg,#071022 0%, #071b2f 100%); color:var(--text); display:flex; align-items:center; justify-content:center; padding:32px}
+    .app{width:100%; max-width:980px}
+    header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+    h1{font-size:20px;margin:0}
+    .controls{margin-left:auto;display:flex;gap:8px;align-items:center}
+    .card{background:var(--card); padding:18px;border-radius:12px; box-shadow: 0 6px 18px rgba(2,6,23,0.6);}
+
+    .layout{display:grid;grid-template-columns:1fr 360px;gap:16px}
+    @media (max-width:900px){.layout{grid-template-columns:1fr}}
+
+    form.add{display:flex;gap:8px;margin-bottom:12px}
+    input[type=text], textarea, select{background:var(--glass); border:1px solid rgba(255,255,255,0.04); color:var(--text); padding:10px;border-radius:8px; outline:none}
+    textarea{resize:vertical;min-height:64px}
+    button{background:var(--accent); color:#06202f; border:none;padding:10px 12px;border-radius:8px; cursor:pointer}
+    button.ghost{background:transparent;color:var(--muted); border:1px solid rgba(255,255,255,0.03)}
+    .task{display:flex;align-items:flex-start;gap:12px;padding:10px;border-radius:8px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.03)}
+    .task.done{opacity:0.6;text-decoration:line-through}
+    .filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+    .meta{font-size:12px;color:var(--muted)}
+    .search{display:flex;gap:8px;margin-bottom:12px}
+    .empty{padding:24px;text-align:center;color:var(--muted)}
+
+    /* small utilities */
+    .stretch{flex:1}
+    .row{display:flex;gap:8px;align-items:center}
+    .note{font-size:13px;color:var(--muted)}
+    footer{margin-top:16px;color:var(--muted);font-size:13px;text-align:center}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Simple HTML App — Tasks & Notes</h1>
+      <div class="controls">
+        <div class="meta">Local-only • No backend</div>
+        <button id="exportBtn" class="ghost">Export</button>
+        <button id="importBtn" class="ghost">Import</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <section class="card">
+        <form id="addForm" class="add" onsubmit="return false;">
+          <input id="titleInput" type="text" placeholder="Task title or note headline" required />
+          <select id="typeSelect" title="type">
+            <option value="task">Task</option>
+            <option value="note">Note</option>
+          </select>
+          <button id="addBtn">Add</button>
+        </form>
+
+        <div class="search">
+          <input id="search" type="text" class="stretch" placeholder="Search tasks & notes" />
+          <select id="filter" title="filter">
+            <option value="all">All</option>
+            <option value="tasks">Tasks</option>
+            <option value="notes">Notes</option>
+            <option value="done">Done</option>
+            <option value="active">Active</option>
+          </select>
+        </div>
+
+        <div class="filters">
+          <button class="ghost" data-sort="new">Newest</button>
+          <button class="ghost" data-sort="old">Oldest</button>
+          <button class="ghost" data-sort="az">A → Z</button>
+        </div>
+
+        <div id="list" aria-live="polite"></div>
+
+        <div id="empty" class="empty" style="display:none">No items yet — add your first task or note.</div>
+
+        <footer>
+          <div class="note">This app stores data in your browser (localStorage). Use Export to save a backup JSON file.</div>
+        </footer>
+      </section>
+
+      <aside class="card">
+        <h3 style="margin-top:0">Details</h3>
+        <div id="details">
+          <p class="note">Select an item to view or edit details (title, description, due date).</p>
+        </div>
+        <hr />
+        <h4 style="margin-bottom:8px">Quick actions</h4>
+        <div class="row">
+          <button id="clearDone" class="ghost">Clear done</button>
+          <button id="clearAll" class="ghost">Clear all</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    // Simple single-file app: tasks & notes with localStorage
+    const STORAGE_KEY = 'simple_html_app_v1';
+    const listEl = document.getElementById('list');
+    const emptyEl = document.getElementById('empty');
+    const titleInput = document.getElementById('titleInput');
+    const typeSelect = document.getElementById('typeSelect');
+    const addBtn = document.getElementById('addBtn');
+    const addForm = document.getElementById('addForm');
+    const searchInput = document.getElementById('search');
+    const filterSelect = document.getElementById('filter');
+    const exportBtn = document.getElementById('exportBtn');
+    const importBtn = document.getElementById('importBtn');
+    const detailsEl = document.getElementById('details');
+    let items = load();
+    let currentSort = 'new';
+    let selectedId = null;
+
+    function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }
+    function load(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }catch(e){return []} }
+
+    function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+    function render(){
+      const q = searchInput.value.trim().toLowerCase();
+      const filter = filterSelect.value;
+      let out = items.slice();
+      // filter
+      if(filter === 'tasks') out = out.filter(i=>i.type==='task');
+      if(filter === 'notes') out = out.filter(i=>i.type==='note');
+      if(filter === 'done') out = out.filter(i=>i.done);
+      if(filter === 'active') out = out.filter(i=>!i.done);
+      // search
+      if(q) out = out.filter(i => (i.title + ' ' + (i.desc||'')).toLowerCase().includes(q));
+      // sort
+      if(currentSort === 'new') out.sort((a,b)=>b.created-a.created);
+      if(currentSort === 'old') out.sort((a,b)=>a.created-b.created);
+      if(currentSort === 'az') out.sort((a,b)=>a.title.localeCompare(b.title));
+
+      listEl.innerHTML = '';
+      if(out.length===0){ emptyEl.style.display='block'; return; } else emptyEl.style.display='none';
+
+      out.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'task' + (item.done? ' done':'');
+        el.dataset.id = item.id;
+        el.innerHTML = `
+          <input type="checkbox" ${item.done? 'checked':''} aria-label="mark done" />
+          <div style="flex:1">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <strong>${escapeHtml(item.title)}</strong>
+              <div class="meta">${item.type} • ${new Date(item.created).toLocaleString()}</div>
+            </div>
+            ${item.desc? `<div class="note">${escapeHtml(item.desc)}</div>`: ''}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-left:8px">
+            <button class="ghost edit">Edit</button>
+            <button class="ghost remove">Delete</button>
+          </div>
+        `;
+
+        // checkbox toggle
+        const cb = el.querySelector('input[type=checkbox]');
+        cb.addEventListener('change', ()=>{
+          toggleDone(item.id);
+        });
+        // edit
+        el.querySelector('.edit').addEventListener('click', ()=> openEditor(item.id));
+        el.querySelector('.remove').addEventListener('click', ()=>{ if(confirm('Delete this item?')){ removeItem(item.id); }});
+
+        el.addEventListener('click', (e)=>{
+          // if clicked on button or checkbox, ignore outer click (handled above)
+          if(e.target.closest('button') || e.target.type==='checkbox') return;
+          openEditor(item.id);
+        });
+
+        listEl.appendChild(el);
+      });
+    }
+
+    function escapeHtml(str){ return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    function addItem(title, type, desc=''){
+      const obj = {id:uid(), title, type, desc, created:Date.now(), done:false};
+      items.push(obj); save(); render(); return obj.id;
+    }
+
+    function removeItem(id){ items = items.filter(i=>i.id!==id); if(selectedId===id) selectedId=null, detailsEl.innerHTML=''; save(); render(); }
+    function toggleDone(id){ const it = items.find(i=>i.id===id); if(!it) return; it.done = !it.done; save(); render(); }
+
+    function openEditor(id){ const it = items.find(i=>i.id===id); if(!it) return; selectedId=id; detailsEl.innerHTML = '';
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = `
+        <label class="meta">Title</label>
+        <input id="editTitle" type="text" value="${escapeHtml(it.title)}" />
+        <label class="meta">Type</label>
+        <select id="editType"><option value="task">Task</option><option value="note">Note</option></select>
+        <label class="meta">Description</label>
+        <textarea id="editDesc">${escapeHtml(it.desc||'')}</textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="saveEdit">Save</button>
+          <button id="cancelEdit" class="ghost">Cancel</button>
+        </div>
+      `;
+      detailsEl.appendChild(wrapper);
+      document.getElementById('editType').value = it.type;
+      document.getElementById('saveEdit').addEventListener('click', ()=>{
+        it.title = document.getElementById('editTitle').value || it.title;
+        it.type = document.getElementById('editType').value;
+        it.desc = document.getElementById('editDesc').value;
+        save(); render(); detailsEl.innerHTML = '<div class="note">Saved.</div>';
+      });
+      document.getElementById('cancelEdit').addEventListener('click', ()=>{ detailsEl.innerHTML = ''; selectedId = null; });
+    }
+
+    // wire up controls
+    addBtn.addEventListener('click', ()=>{
+      const title = titleInput.value.trim(); if(!title) return titleInput.focus();
+      const type = typeSelect.value; const id = addItem(title, type);
+      // if type is note, open editor to add description
+      if(type==='note') openEditor(id);
+      titleInput.value=''; titleInput.focus();
+    });
+    addForm.addEventListener('submit',(e)=>{ e.preventDefault(); addBtn.click(); });
+
+    searchInput.addEventListener('input', ()=> render());
+    filterSelect.addEventListener('change', ()=> render());
+
+    document.querySelectorAll('.filters button').forEach(b=> b.addEventListener('click', ()=>{ currentSort = b.dataset.sort || 'new'; render(); }));
+
+    document.getElementById('clearDone').addEventListener('click', ()=>{ if(confirm('Remove all done items?')){ items = items.filter(i=>!i.done); save(); render(); }});
+    document.getElementById('clearAll').addEventListener('click', ()=>{ if(confirm('Remove all items?')){ items = []; save(); render(); detailsEl.innerHTML=''; }});
+
+    exportBtn.addEventListener('click', ()=>{
+      const blob = new Blob([JSON.stringify(items, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'simple_html_app_backup.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    });
+
+    importBtn.addEventListener('click', ()=>{
+      const inp = document.createElement('input'); inp.type='file'; inp.accept='application/json';
+      inp.addEventListener('change', ()=>{
+        const f = inp.files[0]; if(!f) return; const reader = new FileReader();
+        reader.onload = ()=>{
+          try{ const parsed = JSON.parse(reader.result); if(Array.isArray(parsed)){ items = parsed; save(); render(); alert('Imported successfully'); } else alert('Invalid file'); }
+          catch(e){ alert('Could not parse file'); }
+        };
+        reader.readAsText(f);
+      });
+      inp.click();
+    });
+
+    // helper: ensure consistent rendering on load
+    render();
+  </script>
+</body>
+</html>
